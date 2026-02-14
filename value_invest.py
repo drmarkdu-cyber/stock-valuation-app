@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # --- 页面配置 ---
-st.set_page_config(page_title="价值锚点计算器 V2.8 (完美修复版)", layout="wide")
+st.set_page_config(page_title="价值锚点计算器 V2.8.1 (完美修复版)", layout="wide")
 
 # --- CSS 样式注入 (核心排版引擎) ---
 st.markdown("""
@@ -111,7 +111,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("💰 价值投资锚点计算器 (高精度策略)")
+st.title("💰 心智升级价值投资锚点计算器 (高精度策略) -核心逻辑：买股票就是买公司，以10年预期净利润作为评估公司价值的关键基准。根据“性价比”（预期收益率）分档建仓，越便宜（预期收益率越高），买得越多（主战区、博弈区）；越贵（预期收益率越低），越要减仓（退出区）。本模型只适合当前已明确盈利的成长股或红利股，不适合尚未盈利的公司")
 
 # --- 侧边栏：输入参数 ---
 with st.sidebar:
@@ -172,7 +172,7 @@ if calc_btn:
         st.markdown(f"""
         <div class="metric-container">
             <div class="metric-header">
-                <span class="metric-label">10年利润总和 (未折)</span>
+                <span class="metric-label">预计10年每股利润总和 (未折，2024-2033)</span>
             </div>
             <div class="metric-body">
                 <span class="metric-value">¥{ten_year_total:.2f}</span>
@@ -225,11 +225,11 @@ if calc_btn:
 <thead>
 <tr>
 <th>区域</th>
-<th>期望收益</th>
+<th>期望收益率</th>
 <th>A股目标价</th>
-<th>A股距离</th>
+<th>A股目标距离</th>
 <th>H股目标价</th>
-<th>H股距离</th>
+<th>H股目标距离</th>
 <th>仓位建议</th>
 </tr>
 </thead>
