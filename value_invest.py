@@ -3,9 +3,9 @@ import pandas as pd
 import numpy as np
 
 # --- 页面配置 ---
-st.set_page_config(page_title="价值锚点计算器 V2.8.1 (完美修复版)", layout="wide")
+st.set_page_config(page_title="价值锚点计算器 V3.3 (港股通税后版)", layout="wide")
 
-# --- CSS 样式注入 (核心排版引擎) ---
+# --- CSS 样式注入 ---
 st.markdown("""
 <style>
     /* 1. 指标卡片样式 */
@@ -16,13 +16,17 @@ st.markdown("""
         border: 1px solid #e9ecef;
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
         margin-bottom: 20px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
     
     .metric-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
     }
     
     .metric-label {
@@ -32,35 +36,80 @@ st.markdown("""
     }
     
     .formula-tag {
-        font-size: 13px;
+        font-size: 12px;
         color: #666;
         background-color: #e2e6ea;
-        padding: 4px 8px;
-        border-radius: 6px;
+        padding: 2px 6px;
+        border-radius: 4px;
         font-family: monospace;
     }
     
     .metric-body {
         display: flex;
         align-items: baseline;
-        gap: 15px;
+        gap: 10px;
+        margin-bottom: 5px;
     }
     
     .metric-value {
-        font-size: 36px;
+        font-size: 32px;
         font-weight: 800;
         color: #212529;
         line-height: 1;
     }
     
     .metric-delta {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 600;
     }
     .up { color: #28a745; }
     .down { color: #dc3545; }
+    
+    /* 2. 收益率标签样式 */
+    .yield-container {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-top: 8px;
+    }
 
-    /* 2. 策略表格样式 */
+    .yield-row {
+        font-size: 13px;
+        font-weight: 500;
+        color: #555;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        flex-wrap: wrap; /* 允许换行以适应长文字 */
+    }
+
+    .yield-badge-purple {
+        background-color: #f3d9fa;
+        color: #5f3dc4;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        margin-left: 8px;
+        font-size: 13px;
+    }
+
+    .yield-badge-green {
+        background-color: #d3f9d8;
+        color: #2b8a3e;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        margin-left: 8px;
+        font-size: 13px;
+    }
+    
+    .tax-note {
+        font-size: 11px;
+        color: #999;
+        margin-left: 5px;
+    }
+
+    /* 3. 策略表格样式 */
     .strategy-table {
         width: 100%;
         border-collapse: collapse; 
@@ -94,59 +143,85 @@ st.markdown("""
     .bg-hold { background-color: #ffffff !important; color: #333; }
     .bg-sell { background-color: #e9ecef !important; color: #868e96; }
     
-    /* 3. 锚点行高亮样式 (红框) */
+    /* 锚点行高亮 */
     .anchor-row td {
         border-top: 3px solid #ff4b4b !important;
         border-bottom: 3px solid #ff4b4b !important;
         color: #d63384 !important;
         font-weight: 900 !important;
     }
-    .anchor-row td:first-child {
-        border-left: 3px solid #ff4b4b !important;
-    }
-    .anchor-row td:last-child {
-        border-right: 3px solid #ff4b4b !important;
-    }
+    .anchor-row td:first-child { border-left: 3px solid #ff4b4b !important; }
+    .anchor-row td:last-child { border-right: 3px solid #ff4b4b !important; }
 
 </style>
 """, unsafe_allow_html=True)
 
-st.title("💰 心智升级价值投资锚点计算器 (高精度策略) -核心逻辑：买股票就是买公司，以10年预期净利润作为评估公司价值的关键基准。根据“性价比”（预期收益率）分档建仓，越便宜（预期收益率越高），买得越多（主战区、博弈区）；越贵（预期收益率越低），越要减仓（退出区）。本模型只适合当前已明确盈利的成长股或红利股，不适合尚未盈利的公司")
+# --- 标题与核心说明区 ---
+st.title("💰 心智升级价值投资锚点计算器 1.0")
+
+st.markdown("""
+<div style="background-color: #f1f3f5; padding: 15px; border-radius: 8px; font-size: 14px; color: #495057; line-height: 1.6; border-left: 5px solid #0068c9; margin-bottom: 25px;">
+    <strong>核心逻辑：</strong>买股票就是买公司，以10年预期净利润作为评估公司价值的关键基准。根据“性价比”（预期收益率）分档建仓：
+    <ul style="margin-top: 5px; margin-bottom: 5px; padding-left: 20px;">
+        <li>越便宜（预期收益率越高），买得越多（主战区、博弈区）；</li>
+        <li>越贵（预期收益率越低），越要减仓（退出区）。</li>
+    </ul>
+    <span style="color: #d63384; font-weight: 500;">* 本模型只适合当前已明确盈利的成长股或红利股，不适合尚未盈利的公司。</span>
+</div>
+""", unsafe_allow_html=True)
 
 # --- 侧边栏：输入参数 ---
 with st.sidebar:
     st.header("1. 输入行情数据")
     
-    # 【修复点】找回了消失的股票名称字段
+    market_type = st.radio("上市类型", ["A+H股", "仅A股", "仅港股"], horizontal=True)
     stock_name = st.text_input("股票名称", value="青岛港")
     
     col_price1, col_price2 = st.columns(2)
-    with col_price1:
-        current_price_rmb = st.number_input("🅰️ A股股价 (¥)", value=8.66, format="%.2f")
-    with col_price2:
-        current_price_hk = st.number_input("🇭🇰 港股股价 ($)", value=7.20, format="%.2f")
+    current_price_rmb = 0.0
+    current_price_hk = 0.0
+    
+    if market_type in ["A+H股", "仅A股"]:
+        with col_price1:
+            current_price_rmb = st.number_input("🅰️ A股股价 (¥)", value=8.66, format="%.2f")
+    
+    if market_type in ["A+H股", "仅港股"]:
+        with col_price2:
+            current_price_hk = st.number_input("🇭🇰 港股股价 ($)", value=7.20, format="%.2f")
     
     st.header("2. 输入基本面数据")
     col_fund1, col_fund2 = st.columns(2)
     with col_fund1:
         current_eps = st.number_input("当前每股净利润 (¥)", value=0.81, format="%.2f")
     with col_fund2:
-        dividend_per_share = st.number_input("每股分红 (¥)", value=0.31, format="%.2f")
+        current_dividend = st.number_input("当前股息 (¥)", value=0.31, format="%.2f", help="请输入每股年度分红总额 (税前)")
     
-    st.markdown("---")
-    st.write("💱 **汇率设置**")
-    exchange_rate = st.number_input(
-        "港币汇率 (1 HKD = ? RMB)", value=0.8839, format="%.4f", step=0.0001
-    )
+    exchange_rate = 1.0
+    if market_type != "仅A股": 
+        st.markdown("---")
+        st.write("💱 **汇率设置**")
+        exchange_rate = st.number_input(
+            "港币汇率 (1 HKD = ? RMB)", value=0.8839, format="%.4f", step=0.0001
+        )
 
     st.header("3. 设定增长与折扣")
     growth_rate = st.number_input("未来10年增长率 (%)", value=3.0, step=0.1, format="%.1f") / 100
     
     st.write("⚓ **安全边际折扣**")
-    discount_rate_rmb = st.slider("🇨🇳 A股折扣 (%)", 50, 120, 90, 5) / 100
-    discount_rate_hk = st.slider("🇭🇰 H股折扣 (%)", 30, 100, 80, 5) / 100
+    
+    discount_rate_rmb = 0.9
+    discount_rate_hk = 0.8
+    
+    if market_type in ["A+H股", "仅A股"]:
+        discount_rate_rmb = st.slider("🇨🇳 A股折扣 (%)", 50, 120, 90, 5) / 100
+        
+    if market_type in ["A+H股", "仅港股"]:
+        discount_rate_hk = st.slider("🇭🇰 H股折扣 (%)", 30, 100, 80, 5) / 100
     
     calc_btn = st.button("开始计算", type="primary")
+
+    st.markdown("---")
+    st.caption("Designed by **Dr.Du**")
 
 # --- 核心计算逻辑 ---
 if calc_btn:
@@ -157,91 +232,165 @@ if calc_btn:
         total_profit += year_eps
     ten_year_total = total_profit
     
-    # 2. 基础锚点计算
-    anchor_price_rmb = ten_year_total * discount_rate_rmb 
-    margin_rmb = (anchor_price_rmb - current_price_rmb) / current_price_rmb 
+    # 2. 锚点与收益率计算
     
-    # H股锚点
-    anchor_price_hk_val = (anchor_price_rmb / exchange_rate) * discount_rate_hk
-    margin_hk = (anchor_price_hk_val - current_price_hk) / current_price_hk
+    # --- A股 ---
+    anchor_price_rmb = 0
+    margin_rmb = 0
+    expected_yield_rmb = 0
+    dividend_yield_rmb = 0
     
-    # --- 结果展示区 (HTML 渲染) ---
-    c1, c2, c3 = st.columns(3)
+    if market_type in ["A+H股", "仅A股"]:
+        anchor_price_rmb = ten_year_total * discount_rate_rmb 
+        if current_price_rmb > 0:
+            margin_rmb = (anchor_price_rmb - current_price_rmb) / current_price_rmb 
+            expected_yield_rmb = (anchor_price_rmb / current_price_rmb) / 10
+            # A股暂不考虑税(因为持股期限不同税率不同)，显示名义股息率
+            dividend_yield_rmb = current_dividend / current_price_rmb
     
-    with c1:
+    # --- 港股 ---
+    anchor_price_hk_val = 0
+    margin_hk = 0
+    expected_yield_hk = 0
+    dividend_yield_hk = 0
+    
+    if market_type in ["A+H股", "仅港股"]:
+        profit_in_hkd_base = 0
+        if market_type == "A+H股":
+            profit_in_hkd_base = anchor_price_rmb / exchange_rate
+        else:
+            profit_in_hkd_base = ten_year_total / exchange_rate
+            
+        anchor_price_hk_val = profit_in_hkd_base * discount_rate_hk
+        
+        if current_price_hk > 0 and exchange_rate > 0:
+            margin_hk = (anchor_price_hk_val - current_price_hk) / current_price_hk
+            expected_yield_hk = (anchor_price_hk_val / current_price_hk) / 10
+            
+            # 【核心修改】港股通股息税处理
+            # 原始股息率
+            raw_dividend_yield = current_dividend / (current_price_hk * exchange_rate)
+            # 扣除 20% 红利税
+            dividend_yield_hk = raw_dividend_yield * 0.8
+    
+    # --- 结果展示区 ---
+    cols_to_show = [True] 
+    if market_type == "A+H股":
+        cols_to_show += [True, True]
+    elif market_type == "仅A股":
+        cols_to_show += [True, False]
+    elif market_type == "仅港股":
+        cols_to_show += [False, True]
+        
+    visible_cols = [c for c in cols_to_show if c]
+    cols = st.columns(len(visible_cols))
+    col_idx = 0
+    
+    # Col 1: 总利润
+    with cols[col_idx]:
         st.markdown(f"""
         <div class="metric-container">
             <div class="metric-header">
-                <span class="metric-label">预计10年每股利润总和 (未折，2024-2033)</span>
+                <span class="metric-label">预计10年每股利润总和 (未折)</span>
             </div>
             <div class="metric-body">
                 <span class="metric-value">¥{ten_year_total:.2f}</span>
             </div>
+            <div class="yield-container" style="visibility: hidden;">
+                 <div class="yield-row">占位</div>
+                 <div class="yield-row">占位</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
+    col_idx += 1
 
-    with c2:
-        cls_rmb = "up" if margin_rmb > 0 else "down"
-        arrow_rmb = "↑" if margin_rmb > 0 else "↓"
-        st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-header">
-                <span class="metric-label">🇨🇳 A股锚点</span>
+    # Col 2: A股锚点
+    if market_type in ["A+H股", "仅A股"]:
+        with cols[col_idx]:
+            cls_rmb = "up" if margin_rmb > 0 else "down"
+            arrow_rmb = "↑" if margin_rmb > 0 else "↓"
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-header">
+                    <span class="metric-label">🇨🇳 A股锚点</span>
+                </div>
+                <div>
+                    <div class="metric-body">
+                        <span class="metric-value">¥{anchor_price_rmb:.2f}</span>
+                        <span class="metric-delta {cls_rmb}">{arrow_rmb} {margin_rmb:.2%}</span>
+                    </div>
+                    <div class="yield-container">
+                        <div class="yield-row">
+                            当前预期收益: <span class="yield-badge-purple">{expected_yield_rmb:.2%}</span>
+                        </div>
+                        <div class="yield-row">
+                            当前股息率: <span class="yield-badge-green">{dividend_yield_rmb:.2%}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="metric-body">
-                <span class="metric-value">¥{anchor_price_rmb:.2f}</span>
-                <span class="metric-delta {cls_rmb}">{arrow_rmb} {margin_rmb:.2%}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+        col_idx += 1
 
-    with c3:
-        cls_hk = "up" if margin_hk > 0 else "down"
-        arrow_hk = "↑" if margin_hk > 0 else "↓"
-        formula = f"(¥{anchor_price_rmb:.2f} / {exchange_rate}) × {discount_rate_hk*100:.0f}%"
-        st.markdown(f"""
-        <div class="metric-container">
-            <div class="metric-header">
-                <span class="metric-label">🇭🇰 港股锚点</span>
-                <span class="formula-tag">{formula}</span>
+    # Col 3: 港股锚点
+    if market_type in ["A+H股", "仅港股"]:
+        with cols[col_idx]:
+            cls_hk = "up" if margin_hk > 0 else "down"
+            arrow_hk = "↑" if margin_hk > 0 else "↓"
+            
+            if market_type == "A+H股":
+                formula = f"(A股锚点 / 汇率) × {discount_rate_hk*100:.0f}%"
+            else:
+                formula = f"(总利润 / 汇率) × {discount_rate_hk*100:.0f}%"
+                
+            st.markdown(f"""
+            <div class="metric-container">
+                <div class="metric-header">
+                    <span class="metric-label">🇭🇰 港股锚点</span>
+                    <span class="formula-tag">{formula}</span>
+                </div>
+                <div>
+                    <div class="metric-body">
+                        <span class="metric-value">HK${anchor_price_hk_val:.2f}</span>
+                        <span class="metric-delta {cls_hk}">{arrow_hk} {margin_hk:.2%}</span>
+                    </div>
+                    <div class="yield-container">
+                        <div class="yield-row">
+                            当前预期收益: <span class="yield-badge-purple">{expected_yield_hk:.2%}</span>
+                        </div>
+                        <div class="yield-row">
+                            当前股息率 (税后): <span class="yield-badge-green">{dividend_yield_hk:.2%}</span>
+                            <span class="tax-note">*(扣除20%红利税)</span>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="metric-body">
-                <span class="metric-value">HK${anchor_price_hk_val:.2f}</span>
-                <span class="metric-delta {cls_hk}">{arrow_hk} {margin_hk:.2%}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
     st.divider()
     
-    # --- 🎯 动态分档策略表 (HTML 生成) ---
-    st.subheader(f"🎯 分档买入策略表 - {stock_name}") # 这里也把股票名字加上去了
+    # --- 🎯 动态分档策略表 ---
+    st.subheader(f"🎯 分档买入策略表 - {stock_name}")
     
-    # 1. 生成数据
+    headers = ["区域", "期望收益率"]
+    if market_type in ["A+H股", "仅A股"]:
+        headers.extend(["A股目标价", "A股目标距离"])
+    if market_type in ["A+H股", "仅港股"]:
+        headers.extend(["H股目标价", "H股目标距离"])
+    headers.append("仓位建议")
+    
+    html_table = '<table class="strategy-table"><thead><tr>'
+    for h in headers:
+        html_table += f'<th>{h}</th>'
+    html_table += '</tr></thead><tbody>'
+
     yields = [x / 1000 for x in range(40, 125, 5)] + [x / 100 for x in range(13, 21, 1)]
     
-    # 2. 构建 HTML 表格字符串
-    html_table = """<table class="strategy-table">
-<thead>
-<tr>
-<th>区域</th>
-<th>期望收益率</th>
-<th>A股目标价</th>
-<th>A股目标距离</th>
-<th>H股目标价</th>
-<th>H股目标距离</th>
-<th>仓位建议</th>
-</tr>
-</thead>
-<tbody>"""
-
     for y in yields:
-        # 逻辑判断
         css_class = ""
         position = ""
         zone = ""
         
-        # 判断 10.0% 锚点行
         is_anchor_row = abs(y - 0.100) < 0.0001
         
         if y < 0.041:
@@ -276,30 +425,28 @@ if calc_btn:
             position = "买入15%+"
             css_class = "bg-super"
 
-        # 锚点行特殊处理
         if is_anchor_row:
             css_class += " anchor-row"
             zone += " (锚点)"
 
-        # 计算数值
-        t_rmb = anchor_price_rmb / (y * 10)
-        d_rmb = (t_rmb - current_price_rmb) / current_price_rmb
-        t_hk = anchor_price_hk_val / (y * 10)
-        d_hk = (t_hk - current_price_hk) / current_price_hk
-
-        html_table += f"""<tr class="{css_class}">
-<td>{zone}</td>
-<td>{y:.1%}</td>
-<td>¥{t_rmb:.2f}</td>
-<td>{d_rmb:+.2%}</td>
-<td>HK${t_hk:.2f}</td>
-<td>{d_hk:+.2%}</td>
-<td>{position}</td>
-</tr>"""
+        html_table += f'<tr class="{css_class}">'
+        html_table += f'<td>{zone}</td>'
+        html_table += f'<td>{y:.1%}</td>'
+        
+        if market_type in ["A+H股", "仅A股"]:
+            t_rmb = anchor_price_rmb / (y * 10)
+            d_rmb = (t_rmb - current_price_rmb) / current_price_rmb if current_price_rmb > 0 else 0
+            html_table += f'<td>¥{t_rmb:.2f}</td><td>{d_rmb:+.2%}</td>'
+            
+        if market_type in ["A+H股", "仅港股"]:
+            t_hk = anchor_price_hk_val / (y * 10)
+            d_hk = (t_hk - current_price_hk) / current_price_hk if current_price_hk > 0 else 0
+            html_table += f'<td>HK${t_hk:.2f}</td><td>{d_hk:+.2%}</td>'
+            
+        html_table += f'<td>{position}</td></tr>'
 
     html_table += "</tbody></table>"
     
-    # 3. 渲染表格
     st.markdown(html_table, unsafe_allow_html=True)
     st.caption("注：红色框选行代表 10.0% 收益率基准（锚点价格），此处建议加重仓位。")
 
