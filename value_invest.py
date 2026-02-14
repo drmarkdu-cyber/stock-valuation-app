@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # --- 页面配置 ---
-st.set_page_config(page_title="价值锚点计算器 V3.5 (三段式增长版)", layout="wide")
+st.set_page_config(page_title="价值锚点计算器 V4.0 (自选股管理版)", layout="wide")
 
 # --- CSS 样式注入 ---
 st.markdown("""
@@ -156,8 +156,10 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 预设公司数据 (基于2024年报/预告整理) ---
-COMPANY_DB = {
+# --- 数据管理逻辑 ---
+
+# 1. 系统预设公司 (不可删除)
+SYSTEM_DB = {
     "自定义": {"eps": 0.0, "div": 0.0, "market": "A+H股"},
     "青岛港": {"eps": 0.81, "div": 0.3141, "market": "A+H股"},
     "格力电器": {"eps": 2.60, "div": 2.997, "market": "仅A股"},
@@ -168,27 +170,67 @@ COMPANY_DB = {
     "中国移动": {"eps": 6.45, "div": 4.671, "market": "A+H股"},
 }
 
-# --- Session State 初始化 ---
+# 2. 初始化 Session State 中的自选股
+if 'user_db' not in st.session_state:
+    st.session_state.user_db = {} # 用户新增的存储在这里
+
+# 3. 合并数据库 (用于下拉菜单显示)
+def get_full_db():
+    full_db = SYSTEM_DB.copy()
+    full_db.update(st.session_state.user_db)
+    return full_db
+
+FULL_DB = get_full_db()
+
+# --- Session State 表单初始化 ---
 if 'selected_company' not in st.session_state:
     st.session_state.selected_company = "青岛港"
 if 'form_eps' not in st.session_state:
-    st.session_state.form_eps = COMPANY_DB["青岛港"]["eps"]
+    st.session_state.form_eps = SYSTEM_DB["青岛港"]["eps"]
 if 'form_div' not in st.session_state:
-    st.session_state.form_div = COMPANY_DB["青岛港"]["div"]
+    st.session_state.form_div = SYSTEM_DB["青岛港"]["div"]
 if 'form_market' not in st.session_state:
-    st.session_state.form_market = COMPANY_DB["青岛港"]["market"]
+    st.session_state.form_market = SYSTEM_DB["青岛港"]["market"]
 if 'form_name' not in st.session_state:
     st.session_state.form_name = "青岛港"
 
-# 回调函数
+# --- 核心回调函数 ---
+
+# 1. 切换下拉菜单时触发
 def update_company_data():
     selected = st.session_state.company_selector
+    full_data = get_full_db()
+    
     if selected != "自定义":
-        data = COMPANY_DB[selected]
-        st.session_state.form_name = selected
-        st.session_state.form_eps = data["eps"]
-        st.session_state.form_div = data["div"]
-        st.session_state.form_market = data["market"]
+        if selected in full_data:
+            data = full_data[selected]
+            st.session_state.form_name = selected
+            st.session_state.form_eps = data["eps"]
+            st.session_state.form_div = data["div"]
+            st.session_state.form_market = data["market"]
+
+# 2. 保存新公司
+def save_custom_company():
+    new_name = st.session_state.new_name_input
+    if new_name and new_name not in SYSTEM_DB:
+        st.session_state.user_db[new_name] = {
+            "eps": st.session_state.new_eps_input,
+            "div": st.session_state.new_div_input,
+            "market": st.session_state.new_market_input
+        }
+        st.success(f"已保存: {new_name}")
+        # 强制刷新以更新下拉菜单
+        st.rerun()
+    elif new_name in SYSTEM_DB:
+        st.error("无法覆盖系统预设公司，请使用不同的名称。")
+    else:
+        st.error("请输入公司名称。")
+
+# 3. 删除自选股
+def delete_custom_company(name_to_delete):
+    if name_to_delete in st.session_state.user_db:
+        del st.session_state.user_db[name_to_delete]
+        st.rerun()
 
 # --- 标题与核心说明区 ---
 st.title("💰 心智升级价值投资锚点计算器 1.0")
@@ -206,17 +248,52 @@ st.markdown("""
 
 # --- 侧边栏：输入参数 ---
 with st.sidebar:
-    # 快速选择模块
+    # --- 模块 A: 快速选择 ---
     st.header("⚡ 快速选择公司")
+    
+    # 动态获取最新的列表（包含用户新增的）
+    current_options = list(get_full_db().keys())
+    
+    # 确保当前选中的还在列表中
+    index_to_select = 0
+    if st.session_state.form_name in current_options:
+        index_to_select = current_options.index(st.session_state.form_name)
+    
     st.selectbox(
-        "选择常见公司 (自动填入基本面)",
-        options=list(COMPANY_DB.keys()),
-        index=1,
+        "选择公司 (含自选)",
+        options=current_options,
+        index=index_to_select,
         key="company_selector",
         on_change=update_company_data
     )
-    
+
+    # --- 模块 B: 新增/管理自选股 (折叠面板) ---
+    with st.expander("🛠️ 新增/管理自选股"):
+        st.write("**添加新公司**")
+        st.text_input("公司名称", key="new_name_input", placeholder="例如: 腾讯控股")
+        st.radio("上市类型", ["A+H股", "仅A股", "仅港股"], key="new_market_input", horizontal=True)
+        c1, c2 = st.columns(2)
+        with c1: st.number_input("EPS", key="new_eps_input", format="%.4f")
+        with c2: st.number_input("股息", key="new_div_input", format="%.4f")
+        
+        if st.button("💾 保存/收藏"):
+            save_custom_company()
+            
+        # 显示已添加的列表并提供删除
+        if st.session_state.user_db:
+            st.divider()
+            st.write("**已收藏列表:**")
+            for name in list(st.session_state.user_db.keys()):
+                col_txt, col_btn = st.columns([3, 1])
+                with col_txt:
+                    st.caption(f"{name}")
+                with col_btn:
+                    if st.button("🗑️", key=f"del_{name}"):
+                        delete_custom_company(name)
+
     st.markdown("---")
+    
+    # --- 模块 C: 核心数据输入 ---
     st.header("1. 输入行情数据")
     
     market_type = st.radio(
@@ -267,10 +344,7 @@ with st.sidebar:
         )
 
     st.header("3. 设定未来增长 (三段式)")
-    
-    # 【核心修改】将原来的一个输入框拆分为三个
     col_g1, col_g2, col_g3 = st.columns(3)
-    
     with col_g1:
         g1 = st.number_input("第1年增长 (%)", value=5.0, step=0.5, format="%.1f") / 100
     with col_g2:
@@ -296,21 +370,17 @@ with st.sidebar:
 
 # --- 核心计算逻辑 ---
 if calc_btn:
-    # 1. 10年利润累积 (三段式算法)
+    # 1. 10年利润累积 (三段式)
     total_profit = 0
-    
-    # 初始化
     year_eps = current_eps
     
-    # 第1年
+    # Year 1
     year_eps = current_eps * (1 + g1)
     total_profit += year_eps
-    
-    # 第2年
+    # Year 2
     year_eps = year_eps * (1 + g2)
     total_profit += year_eps
-    
-    # 第3-10年 (循环8次)
+    # Year 3-10
     for i in range(8):
         year_eps = year_eps * (1 + g3_10)
         total_profit += year_eps
@@ -350,8 +420,6 @@ if calc_btn:
         if current_price_hk > 0 and exchange_rate > 0:
             margin_hk = (anchor_price_hk_val - current_price_hk) / current_price_hk
             expected_yield_hk = (anchor_price_hk_val / current_price_hk) / 10
-            
-            # 【港股通税后股息率】
             raw_dividend_yield = current_dividend / (current_price_hk * exchange_rate)
             dividend_yield_hk = raw_dividend_yield * 0.8
     
