@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # --- 页面配置 ---
-st.set_page_config(page_title="价值锚点计算器 V3.3 (港股通税后版)", layout="wide")
+st.set_page_config(page_title="价值锚点计算器 V3.5 (三段式增长版)", layout="wide")
 
 # --- CSS 样式注入 ---
 st.markdown("""
@@ -80,7 +80,7 @@ st.markdown("""
         display: flex;
         align-items: center;
         justify-content: flex-start;
-        flex-wrap: wrap; /* 允许换行以适应长文字 */
+        flex-wrap: wrap; 
     }
 
     .yield-badge-purple {
@@ -156,6 +156,40 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- 预设公司数据 (基于2024年报/预告整理) ---
+COMPANY_DB = {
+    "自定义": {"eps": 0.0, "div": 0.0, "market": "A+H股"},
+    "青岛港": {"eps": 0.81, "div": 0.3141, "market": "A+H股"},
+    "格力电器": {"eps": 2.60, "div": 2.997, "market": "仅A股"},
+    "国投电力": {"eps": 0.8669, "div": 0.4565, "market": "仅A股"},
+    "海尔智家": {"eps": 2.02, "div": 0.965, "market": "仅A股"},
+    "贵州茅台": {"eps": 68.64, "div": 51.555, "market": "仅A股"},
+    "上港集团": {"eps": 0.64, "div": 0.195, "market": "仅A股"},
+    "中国移动": {"eps": 6.45, "div": 4.671, "market": "A+H股"},
+}
+
+# --- Session State 初始化 ---
+if 'selected_company' not in st.session_state:
+    st.session_state.selected_company = "青岛港"
+if 'form_eps' not in st.session_state:
+    st.session_state.form_eps = COMPANY_DB["青岛港"]["eps"]
+if 'form_div' not in st.session_state:
+    st.session_state.form_div = COMPANY_DB["青岛港"]["div"]
+if 'form_market' not in st.session_state:
+    st.session_state.form_market = COMPANY_DB["青岛港"]["market"]
+if 'form_name' not in st.session_state:
+    st.session_state.form_name = "青岛港"
+
+# 回调函数
+def update_company_data():
+    selected = st.session_state.company_selector
+    if selected != "自定义":
+        data = COMPANY_DB[selected]
+        st.session_state.form_name = selected
+        st.session_state.form_eps = data["eps"]
+        st.session_state.form_div = data["div"]
+        st.session_state.form_market = data["market"]
+
 # --- 标题与核心说明区 ---
 st.title("💰 心智升级价值投资锚点计算器 1.0")
 
@@ -172,10 +206,27 @@ st.markdown("""
 
 # --- 侧边栏：输入参数 ---
 with st.sidebar:
+    # 快速选择模块
+    st.header("⚡ 快速选择公司")
+    st.selectbox(
+        "选择常见公司 (自动填入基本面)",
+        options=list(COMPANY_DB.keys()),
+        index=1,
+        key="company_selector",
+        on_change=update_company_data
+    )
+    
+    st.markdown("---")
     st.header("1. 输入行情数据")
     
-    market_type = st.radio("上市类型", ["A+H股", "仅A股", "仅港股"], horizontal=True)
-    stock_name = st.text_input("股票名称", value="青岛港")
+    market_type = st.radio(
+        "上市类型", 
+        ["A+H股", "仅A股", "仅港股"], 
+        horizontal=True,
+        key="form_market"
+    )
+    
+    stock_name = st.text_input("股票名称", key="form_name")
     
     col_price1, col_price2 = st.columns(2)
     current_price_rmb = 0.0
@@ -192,9 +243,20 @@ with st.sidebar:
     st.header("2. 输入基本面数据")
     col_fund1, col_fund2 = st.columns(2)
     with col_fund1:
-        current_eps = st.number_input("当前每股净利润 (¥)", value=0.81, format="%.2f")
+        current_eps = st.number_input(
+            "当前每股净利润 (¥)", 
+            format="%.4f", 
+            step=0.0001,
+            key="form_eps"
+        )
     with col_fund2:
-        current_dividend = st.number_input("当前股息 (¥)", value=0.31, format="%.2f", help="请输入每股年度分红总额 (税前)")
+        current_dividend = st.number_input(
+            "当前股息 (¥)", 
+            format="%.4f", 
+            step=0.0001,
+            help="请输入每股年度分红总额 (税前)",
+            key="form_div"
+        )
     
     exchange_rate = 1.0
     if market_type != "仅A股": 
@@ -204,8 +266,17 @@ with st.sidebar:
             "港币汇率 (1 HKD = ? RMB)", value=0.8839, format="%.4f", step=0.0001
         )
 
-    st.header("3. 设定增长与折扣")
-    growth_rate = st.number_input("未来10年增长率 (%)", value=3.0, step=0.1, format="%.1f") / 100
+    st.header("3. 设定未来增长 (三段式)")
+    
+    # 【核心修改】将原来的一个输入框拆分为三个
+    col_g1, col_g2, col_g3 = st.columns(3)
+    
+    with col_g1:
+        g1 = st.number_input("第1年增长 (%)", value=5.0, step=0.5, format="%.1f") / 100
+    with col_g2:
+        g2 = st.number_input("第2年增长 (%)", value=4.0, step=0.5, format="%.1f") / 100
+    with col_g3:
+        g3_10 = st.number_input("3-10年增长 (%)", value=3.0, step=0.5, format="%.1f") / 100
     
     st.write("⚓ **安全边际折扣**")
     
@@ -225,11 +296,25 @@ with st.sidebar:
 
 # --- 核心计算逻辑 ---
 if calc_btn:
-    # 1. 10年利润累积
+    # 1. 10年利润累积 (三段式算法)
     total_profit = 0
-    for i in range(10):
-        year_eps = current_eps * ((1 + growth_rate) ** i)
+    
+    # 初始化
+    year_eps = current_eps
+    
+    # 第1年
+    year_eps = current_eps * (1 + g1)
+    total_profit += year_eps
+    
+    # 第2年
+    year_eps = year_eps * (1 + g2)
+    total_profit += year_eps
+    
+    # 第3-10年 (循环8次)
+    for i in range(8):
+        year_eps = year_eps * (1 + g3_10)
         total_profit += year_eps
+        
     ten_year_total = total_profit
     
     # 2. 锚点与收益率计算
@@ -245,7 +330,6 @@ if calc_btn:
         if current_price_rmb > 0:
             margin_rmb = (anchor_price_rmb - current_price_rmb) / current_price_rmb 
             expected_yield_rmb = (anchor_price_rmb / current_price_rmb) / 10
-            # A股暂不考虑税(因为持股期限不同税率不同)，显示名义股息率
             dividend_yield_rmb = current_dividend / current_price_rmb
     
     # --- 港股 ---
@@ -267,10 +351,8 @@ if calc_btn:
             margin_hk = (anchor_price_hk_val - current_price_hk) / current_price_hk
             expected_yield_hk = (anchor_price_hk_val / current_price_hk) / 10
             
-            # 【核心修改】港股通股息税处理
-            # 原始股息率
+            # 【港股通税后股息率】
             raw_dividend_yield = current_dividend / (current_price_hk * exchange_rate)
-            # 扣除 20% 红利税
             dividend_yield_hk = raw_dividend_yield * 0.8
     
     # --- 结果展示区 ---
