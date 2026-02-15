@@ -441,7 +441,7 @@ if calc_btn:
         st.markdown(f"""
         <div class="metric-container">
             <div class="metric-header">
-                <span class="metric-label">预计10年每股利润总和 (未折)</span>
+                <span class="metric-label">预计10年每股利润总和 (未折，Y2024-Y2033)</span>
             </div>
             <div class="metric-body">
                 <span class="metric-value">¥{ten_year_total:.2f}</span>
@@ -602,3 +602,4 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
