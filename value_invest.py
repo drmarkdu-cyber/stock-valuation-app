@@ -329,7 +329,7 @@ with st.sidebar:
         st.markdown("---")
         st.write("💱 **汇率设置**")
         exchange_rate = st.number_input(
-            "港币汇率 (1 HKD = ? RMB)", value=0.8839, format="%.4f", step=0.0001
+            "港币汇率 (1 HKD = ? RMB)", value=0.906, format="%.4f", step=0.0001
         )
 
     st.header("3. 设定未来增长 (三段式)")
@@ -604,3 +604,4 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
