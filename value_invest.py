@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # --- 页面配置 ---
-st.set_page_config(page_title="价值锚点计算器 V4.1 (算法修正版)", layout="wide")
+st.set_page_config(page_title="价值锚点计算器 V4.1.1 (算法修正版)", layout="wide")
 
 # --- CSS 样式注入 ---
 st.markdown("""
@@ -327,20 +327,20 @@ with st.sidebar:
     exchange_rate = 1.0
     if market_type != "仅A股": 
         st.markdown("---")
-        st.write("💱 **汇率设置**")
+        st.write("💱 **汇率设置-请自行设定**")
         exchange_rate = st.number_input(
-            "港币汇率 (1 HKD = ? RMB)", value=0.906, format="%.4f", step=0.0001
+            "港币汇率 (1 HKD = ? RMB)", value=0.8838, format="%.4f", step=0.0001
         )
 
-    st.header("3. 设定未来增长 (三段式)")
+    st.header("3. 假设未来增长率 (三段式)")
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
-        g1 = st.number_input("第1年增长 (%)", value=5.0, step=0.5, format="%.1f") / 100
+        g1 = st.number_input("第1年增长率 (%)", value=5.0, step=0.5, format="%.1f") / 100
         st.caption("注：用于计算第2年")
     with col_g2:
-        g2 = st.number_input("第2年增长 (%)", value=4.0, step=0.5, format="%.1f") / 100
+        g2 = st.number_input("第2年增长率 (%)", value=4.0, step=0.5, format="%.1f") / 100
     with col_g3:
-        g3_10 = st.number_input("3-10年增长 (%)", value=3.0, step=0.5, format="%.1f") / 100
+        g3_10 = st.number_input("3-10年增长率 (%)", value=3.0, step=0.5, format="%.1f") / 100
     
     st.write("⚓ **安全边际折扣**")
     
@@ -351,7 +351,7 @@ with st.sidebar:
         discount_rate_rmb = st.slider("🇨🇳 A股折扣 (%)", 50, 120, 90, 5) / 100
         
     if market_type in ["A+H股", "仅港股"]:
-        discount_rate_hk = st.slider("🇭🇰 H股折扣 (%)", 30, 100, 80, 5) / 100
+        discount_rate_hk = st.slider("🇭🇰 H股折扣 (%)-港股通H股股息扣20%税。", 30, 120, 80, 5) / 100
     
     calc_btn = st.button("开始计算", type="primary")
 
@@ -604,4 +604,5 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
 
