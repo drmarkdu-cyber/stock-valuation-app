@@ -179,6 +179,10 @@ SYSTEM_DB = {
     "安踏体育": {"eps": 5.55, "div": 2.0841, "market": "仅港股"},
     "比亚迪": {"eps": 13.84, "div": 3.974, "market": "A+H股"},
     "腾讯控股": {"eps": 20.94, "div": 3.976, "market": "仅港股"},
+    "老板电器": {"eps": 1.67, "div": 1.0, "market": "仅A股"},
+    "泸州老窖": {"eps": 9.18, "div": 5.95, "market": "仅A股"},
+    "福耀玻璃": {"eps": 2.87, "div": 1.80, "market": "仅A股"},
+    "梅花生物": {"eps": 0.94, "div": 0.602, "market": "仅A股"},
 }
 
 if 'user_db' not in st.session_state:
@@ -615,6 +619,7 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
 
 
 
