@@ -362,7 +362,7 @@ with st.sidebar:
         discount_rate_rmb = st.slider("🇨🇳 A股折扣 (%)", 50, 120, 90, 5) / 100
         
     if market_type in ["A+H股", "仅港股"]:
-        discount_rate_hk = st.slider("🇭🇰 H股折扣 (%)-港股通H股股息扣20%税", 50, 120, 80, 5) / 100
+        discount_rate_hk = st.slider("🇭🇰 H股折扣 (%)-港股通H股股息扣20%个税", 50, 120, 80, 5) / 100
     
     calc_btn = st.button("开始计算", type="primary")
 
@@ -615,6 +615,7 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
 
 
 
