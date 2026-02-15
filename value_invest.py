@@ -257,7 +257,7 @@ with st.sidebar:
     )
 
     # --- 模块 B: 新增/管理自选股 (折叠面板) ---
-    with st.expander("🛠️ 新增/管理自选股-暂不能保存"):
+    with st.expander("🛠️ 新增/管理自选股-暂存"):
         st.write("**添加新公司**")
         st.text_input("公司名称", key="new_name_input", placeholder="例如: 腾讯控股")
         st.radio("上市类型", ["A+H股", "仅A股", "仅港股"], key="new_market_input", horizontal=True)
@@ -604,6 +604,7 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
 
 
 
