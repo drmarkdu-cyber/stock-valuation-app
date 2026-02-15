@@ -257,7 +257,7 @@ with st.sidebar:
     )
 
     # --- 模块 B: 新增/管理自选股 (折叠面板) ---
-    with st.expander("🛠️ 新增/管理自选股"):
+    with st.expander("🛠️ 新增/管理自选股-暂不能保存"):
         st.write("**添加新公司**")
         st.text_input("公司名称", key="new_name_input", placeholder="例如: 腾讯控股")
         st.radio("上市类型", ["A+H股", "仅A股", "仅港股"], key="new_market_input", horizontal=True)
@@ -305,7 +305,7 @@ with st.sidebar:
         with col_price2:
             current_price_hk = st.number_input("🇭🇰 港股股价 ($)", value=7.20, format="%.2f")
     
-    st.header("2. 输入基本面数据")
+    st.header("2. 输入基本面数据(2024年)")
     col_fund1, col_fund2 = st.columns(2)
     with col_fund1:
         current_eps = st.number_input(
@@ -336,7 +336,7 @@ with st.sidebar:
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
         g1 = st.number_input("第1年增长率 (%)", value=5.0, step=0.5, format="%.1f") / 100
-        st.caption("注：用于计算第2年")
+        st.caption("注：用于计算第2-9年数据")
     with col_g2:
         g2 = st.number_input("第2年增长率 (%)", value=4.0, step=0.5, format="%.1f") / 100
     with col_g3:
@@ -600,10 +600,11 @@ if calc_btn:
     html_table += "</tbody></table>"
     
     st.markdown(html_table, unsafe_allow_html=True)
-    st.caption("注：红色框选行代表 10.0% 收益率基准（锚点价格），此处建议加重仓位。")
+    st.caption("注：以红色框的 10.0% 收益率为基准得到锚点价格，越低性价比越高。")
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
 
 
 
