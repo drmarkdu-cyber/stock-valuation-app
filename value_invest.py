@@ -336,7 +336,7 @@ with st.sidebar:
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
         g1 = st.number_input("第1年增长率 (%)", value=5.0, step=0.5, format="%.1f") / 100
-        st.caption("注：用于计算第2-9年数据")
+        st.caption("注：用于计算第2-10年数据")
     with col_g2:
         g2 = st.number_input("第2年增长率 (%)", value=4.0, step=0.5, format="%.1f") / 100
     with col_g3:
@@ -604,6 +604,7 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
+
 
 
 
