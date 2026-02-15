@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 
 # --- 页面配置 ---
-st.set_page_config(page_title="价值锚点计算器 V4.0 (自选股管理版)", layout="wide")
+st.set_page_config(page_title="价值锚点计算器 V4.1 (算法修正版)", layout="wide")
 
 # --- CSS 样式注入 ---
 st.markdown("""
@@ -158,7 +158,7 @@ st.markdown("""
 
 # --- 数据管理逻辑 ---
 
-# 1. 系统预设公司 (不可删除)
+# 1. 系统预设公司
 SYSTEM_DB = {
     "自定义": {"eps": 0.0, "div": 0.0, "market": "A+H股"},
     "青岛港": {"eps": 0.81, "div": 0.3141, "market": "A+H股"},
@@ -170,11 +170,9 @@ SYSTEM_DB = {
     "中国移动": {"eps": 6.45, "div": 4.671, "market": "A+H股"},
 }
 
-# 2. 初始化 Session State 中的自选股
 if 'user_db' not in st.session_state:
-    st.session_state.user_db = {} # 用户新增的存储在这里
+    st.session_state.user_db = {} 
 
-# 3. 合并数据库 (用于下拉菜单显示)
 def get_full_db():
     full_db = SYSTEM_DB.copy()
     full_db.update(st.session_state.user_db)
@@ -182,7 +180,7 @@ def get_full_db():
 
 FULL_DB = get_full_db()
 
-# --- Session State 表单初始化 ---
+# --- Session State 初始化 ---
 if 'selected_company' not in st.session_state:
     st.session_state.selected_company = "青岛港"
 if 'form_eps' not in st.session_state:
@@ -194,9 +192,7 @@ if 'form_market' not in st.session_state:
 if 'form_name' not in st.session_state:
     st.session_state.form_name = "青岛港"
 
-# --- 核心回调函数 ---
-
-# 1. 切换下拉菜单时触发
+# --- 回调函数 ---
 def update_company_data():
     selected = st.session_state.company_selector
     full_data = get_full_db()
@@ -209,7 +205,6 @@ def update_company_data():
             st.session_state.form_div = data["div"]
             st.session_state.form_market = data["market"]
 
-# 2. 保存新公司
 def save_custom_company():
     new_name = st.session_state.new_name_input
     if new_name and new_name not in SYSTEM_DB:
@@ -219,14 +214,12 @@ def save_custom_company():
             "market": st.session_state.new_market_input
         }
         st.success(f"已保存: {new_name}")
-        # 强制刷新以更新下拉菜单
         st.rerun()
     elif new_name in SYSTEM_DB:
         st.error("无法覆盖系统预设公司，请使用不同的名称。")
     else:
         st.error("请输入公司名称。")
 
-# 3. 删除自选股
 def delete_custom_company(name_to_delete):
     if name_to_delete in st.session_state.user_db:
         del st.session_state.user_db[name_to_delete]
@@ -250,11 +243,7 @@ st.markdown("""
 with st.sidebar:
     # --- 模块 A: 快速选择 ---
     st.header("⚡ 快速选择公司")
-    
-    # 动态获取最新的列表（包含用户新增的）
     current_options = list(get_full_db().keys())
-    
-    # 确保当前选中的还在列表中
     index_to_select = 0
     if st.session_state.form_name in current_options:
         index_to_select = current_options.index(st.session_state.form_name)
@@ -279,7 +268,6 @@ with st.sidebar:
         if st.button("💾 保存/收藏"):
             save_custom_company()
             
-        # 显示已添加的列表并提供删除
         if st.session_state.user_db:
             st.divider()
             st.write("**已收藏列表:**")
@@ -324,7 +312,8 @@ with st.sidebar:
             "当前每股净利润 (¥)", 
             format="%.4f", 
             step=0.0001,
-            key="form_eps"
+            key="form_eps",
+            help="即第1年的预期利润"
         )
     with col_fund2:
         current_dividend = st.number_input(
@@ -347,6 +336,7 @@ with st.sidebar:
     col_g1, col_g2, col_g3 = st.columns(3)
     with col_g1:
         g1 = st.number_input("第1年增长 (%)", value=5.0, step=0.5, format="%.1f") / 100
+        st.caption("注：用于计算第2年")
     with col_g2:
         g2 = st.number_input("第2年增长 (%)", value=4.0, step=0.5, format="%.1f") / 100
     with col_g3:
@@ -370,22 +360,33 @@ with st.sidebar:
 
 # --- 核心计算逻辑 ---
 if calc_btn:
-    # 1. 10年利润累积 (三段式)
-    total_profit = 0
-    year_eps = current_eps
+    # 1. 10年利润累积 (三段式 - 修正版V4.1)
+    # 修正：Year 1 直接等于 current_eps (2024年预估值)，不进行增长
+    # 增长从 Year 2 (2025年) 开始
     
-    # Year 1
-    year_eps = current_eps * (1 + g1)
-    total_profit += year_eps
-    # Year 2
-    year_eps = year_eps * (1 + g2)
-    total_profit += year_eps
-    # Year 3-10
-    for i in range(8):
-        year_eps = year_eps * (1 + g3_10)
-        total_profit += year_eps
+    profit_list = [] # 记录每年的EPS，方便调试
+    
+    # Year 1 (2024)
+    eps_y1 = current_eps
+    profit_list.append(eps_y1)
+    
+    # Year 2 (2025): Year 1 * (1 + g1)
+    eps_y2 = eps_y1 * (1 + g1)
+    profit_list.append(eps_y2)
+    
+    # Year 3 (2026): Year 2 * (1 + g2)
+    eps_y3 = eps_y2 * (1 + g2)
+    profit_list.append(eps_y3)
+    
+    # Year 4-10 (2027-2033): 上一年 * (1 + g3)
+    eps_prev = eps_y3
+    for _ in range(7): # 4,5,6,7,8,9,10 共7年
+        eps_curr = eps_prev * (1 + g3_10)
+        profit_list.append(eps_curr)
+        eps_prev = eps_curr
         
-    ten_year_total = total_profit
+    # 求和
+    ten_year_total = sum(profit_list)
     
     # 2. 锚点与收益率计算
     
@@ -441,14 +442,15 @@ if calc_btn:
         st.markdown(f"""
         <div class="metric-container">
             <div class="metric-header">
-                <span class="metric-label">预计10年每股利润总和 (未折，Y2024-Y2033)</span>
+                <span class="metric-label">预计10年每股利润总和 (未折)</span>
             </div>
             <div class="metric-body">
                 <span class="metric-value">¥{ten_year_total:.2f}</span>
             </div>
-            <div class="yield-container" style="visibility: hidden;">
-                 <div class="yield-row">占位</div>
-                 <div class="yield-row">占位</div>
+            <div class="yield-container">
+                 <div class="yield-row" style="color: #666; font-size: 12px;">
+                    *含2024当年，即2024-2033累积
+                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -602,4 +604,3 @@ if calc_btn:
 
 else:
     st.info("👈 点击计算，生成最新策略表")
-
